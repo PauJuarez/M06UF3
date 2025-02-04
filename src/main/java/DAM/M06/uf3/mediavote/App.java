@@ -1,27 +1,31 @@
 package DAM.M06.uf3.mediavote;
 
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.*;
+import com.mongodb.client.*;
+import org.bson.Document;
 
 public class App {
     public static void main(String[] args) {
-        // Tu URI de conexión MongoDB
-        String url = "mongodb+srv://pau:pau@pau.2qrey.mongodb.net/?retryWrites=true&w=majority&appName=Pau";
+        // URI 
+        String uri = "mongodb+srv://pau:pau@pau.2qrey.mongodb.net/?retryWrites=true&w=majority&appName=Pau";
 
-        // Crear un objeto MongoClientURI con la URL proporcionada
-        MongoClientURI uri = new MongoClientURI(url);
+        try (MongoClient mongoClient = MongoClients.create(uri)) {
+            String databaseName = "MediaRankDB"; 
+            String collectionName = "MediaRank";
 
-        // Conectar a MongoDB usando el URI
-        try (MongoClient mongoClient = new MongoClient(uri)) {
-            // Obtener la base de datos
-            MongoDatabase database = mongoClient.getDatabase("test"); // Reemplaza "test" con el nombre de tu base de datos
+            // Obtener base de datos y colección
+            MongoDatabase database = mongoClient.getDatabase(databaseName);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-            System.out.println("Conexión exitosa a la base de datos: " + database.getName());
-            
-            // Puedes realizar operaciones en la base de datos aquí
-        } catch (Exception e) {
-            System.out.println("Error de conexión: " + e.getMessage());
+            FindIterable<Document> documents = collection.find();
+
+            System.out.println("Documentos en la colección " + collectionName + ":");
+            for (Document doc : documents) {
+                System.out.println(doc.toJson());
+            }
+
+        } catch (MongoException e) {
+            System.err.println("Error de conexión: " + e.getMessage());
         }
     }
 }
