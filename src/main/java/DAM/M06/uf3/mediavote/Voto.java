@@ -1,6 +1,8 @@
 package DAM.M06.uf3.mediavote;
 
-import org.bson.Document;
+import org.json.JSONObject;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class Voto {
@@ -8,7 +10,6 @@ public class Voto {
     private String titulo;
     private Date fechaVoto;
 
-    // Constructor
     public Voto() {}
 
     public Voto(String usuario, String titulo, Date fechaVoto) {
@@ -17,7 +18,6 @@ public class Voto {
         this.fechaVoto = fechaVoto;
     }
 
-    // Getters i Setters
     public String getUsuario() {
         return usuario;
     }
@@ -42,10 +42,26 @@ public class Voto {
         this.fechaVoto = fechaVoto;
     }
 
-    // Convertir a Document per MongoDB
-    public Document toDocument() {
-        return new Document("usuario", usuario)
-                .append("titulo", titulo)
-                .append("fecha_voto", fechaVoto);
+    public String toJson() {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("usuario", this.usuario);
+        jsonObject.put("titulo", this.titulo);
+        jsonObject.put("fecha_voto", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(this.fechaVoto));
+        return jsonObject.toString();
+    }
+
+    public static Voto fromJson(JSONObject jsonObject) {
+        String usuario = jsonObject.getString("usuario");
+        String titulo = jsonObject.getString("titulo");
+        String fechaStr = jsonObject.getString("fecha_voto");
+
+        Date fechaVoto = null;
+        try {
+            fechaVoto = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(fechaStr);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return new Voto(usuario, titulo, fechaVoto);
     }
 }
