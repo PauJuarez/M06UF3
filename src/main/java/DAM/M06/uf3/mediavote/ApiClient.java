@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.Scanner;
 
 public class ApiClient {
+    private static final String BASE_URL = "https://apipauuf3m06.vercel.app/MediaRank";
+    private static final HttpClient CLIENT = HttpClient.newHttpClient();
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         int option;
-        
+
         do {
             System.out.println("\nMenú de opciones:");
             System.out.println("1. Listar todos los usuarios");
@@ -25,31 +27,27 @@ public class ApiClient {
             System.out.println("4. Crear un usuario");
             System.out.println("5. Salir");
             System.out.print("Seleccione una opción: ");
+
+            while (!scanner.hasNextInt()) {
+                System.out.println("Por favor, ingrese un número válido.");
+                scanner.next();
+            }
             option = scanner.nextInt();
-            scanner.nextLine(); 
+            scanner.nextLine();
 
             switch (option) {
-                case 1:
-                    listAll();
-                    break;
-                case 2:
-                    countVotesByTitle();
-                    break;
-                case 3:
+                case 1 -> listAll();
+                case 2 -> countVotesByTitle();
+                case 3 -> {
                     System.out.print("Ingrese la fecha de inicio (YYYY-MM-DD): ");
                     String startDate = scanner.nextLine();
                     System.out.print("Ingrese la fecha de fin (YYYY-MM-DD): ");
                     String endDate = scanner.nextLine();
                     getMediaByDateRange(startDate, endDate);
-                    break;
-                case 4:
-                    createUser(scanner);
-                    break;
-                case 5:
-                    System.out.println("Saliendo...");
-                    break;
-                default:
-                    System.out.println("Opción no válida. Intente de nuevo.");
+                }
+                case 4 -> createUser(scanner);
+                case 5 -> System.out.println("Saliendo...");
+                default -> System.out.println("Opción no válida. Intente de nuevo.");
             }
         } while (option != 5);
 
@@ -58,103 +56,69 @@ public class ApiClient {
 
     public static void listAll() {
         try {
-            HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI("https://apipauuf3m06.vercel.app/MediaRank"))
+                    .uri(new URI(BASE_URL))
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            JSONArray jsonArray = new JSONArray(response.body());
 
-            String responseBody = response.body();
-            System.out.println(responseBody);
-            System.out.println(".........");
-
-            JSONArray jsonArray = new JSONArray(responseBody);
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-
+            jsonArray.forEach(item -> {
+                JSONObject jsonObject = (JSONObject) item;
                 if (jsonObject.has("usuario")) {
                     JSONObject userJson = jsonObject.getJSONObject("usuario");
-
-                    User user = User.fromJson(userJson);
-                    System.out.println("Usuario: " + user.getNombre() + " " + user.getApellido());
-                    System.out.println("Email: " + user.getEmail() + "\n");
+                    System.out.println("Usuario: " + userJson.optString("nombre", "N/A") + " " + userJson.optString("apellido", "N/A"));
+                    System.out.println("Email: " + userJson.optString("email", "N/A") + "\n");
                 } else {
                     System.out.println("No se encontró el usuario en el JSON.");
                 }
-            }
-
+            });
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error al listar usuarios: " + e.getMessage());
         }
     }
 
     public static void countVotesByTitle() {
         try {
-            HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI("https://apipauuf3m06.vercel.app/MediaRank"))
+                    .uri(new URI(BASE_URL + "/vote"))
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            String responseBody = response.body();
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            JSONArray jsonArray = new JSONArray(response.body());
 
-            Map<String, Integer> voteCountByTitle = new HashMap<>();
-
-            JSONArray jsonArray = new JSONArray(responseBody);
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-
-                if (jsonObject.has("votos")) {
-                    JSONArray votosArray = jsonObject.getJSONArray("votos");
-                    for (int j = 0; j < votosArray.length(); j++) {
-                        JSONObject votoJson = votosArray.getJSONObject(j);
-                        String titulo = votoJson.getString("titulo");
-
-                        voteCountByTitle.put(titulo, voteCountByTitle.getOrDefault(titulo, 0) + 1);
-                    }
-                }
-            }
-
-            System.out.println("Cantidad de votos por título:");
-            for (Map.Entry<String, Integer> entry : voteCountByTitle.entrySet()) {
-                System.out.println(" - " + entry.getKey() + ": " + entry.getValue() + " votos");
-            }
-
+            jsonArray.forEach(item -> {
+                JSONObject vote = (JSONObject) item;
+                System.out.println(" - " + vote.getString("titulo") + ": " + vote.getInt("total_votos") + " votos");
+            });
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error al contar votos: " + e.getMessage());
         }
     }
 
     public static void getMediaByDateRange(String startDate, String endDate) {
         try {
-            HttpClient client = HttpClient.newHttpClient();
-            String url = "https://apipauuf3m06.vercel.app/MediaRank/" + startDate + "/" + endDate;
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI(url))
+                    .uri(new URI(BASE_URL + "/" + startDate + "/" + endDate))
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
-                String responseBody = response.body();
-                JSONArray jsonArray = new JSONArray(responseBody);
-
+                JSONArray jsonArray = new JSONArray(response.body());
                 System.out.println("📅 Contenido entre " + startDate + " y " + endDate + ":");
-                for (int i = 0; i < jsonArray.length(); i++) {
-                    JSONObject item = jsonArray.getJSONObject(i);
-                    String titulo = item.getString("titulo");
-                    String fechaSubida = item.getString("fecha_subida");
-                    System.out.println(" - " + titulo + " (Fecha: " + fechaSubida + ")");
-                }
+                jsonArray.forEach(item -> {
+                    JSONObject content = (JSONObject) item;
+                    System.out.println(" - " + content.getString("titulo") + " (Fecha: " + content.getString("fecha_subida") + ")");
+                });
             } else {
                 System.out.println("⚠️ Error: " + response.statusCode() + " - " + response.body());
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error al obtener contenido por fechas: " + e.getMessage());
         }
     }
 
@@ -167,24 +131,21 @@ public class ApiClient {
             System.out.print("Ingrese el email: ");
             String email = scanner.nextLine();
 
-            JSONObject userJson = new JSONObject();
-            userJson.put("usuario", new JSONObject()
+            JSONObject userJson = new JSONObject().put("usuario", new JSONObject()
                     .put("nombre", nombre)
                     .put("apellido", apellido)
                     .put("email", email));
 
-            HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(new URI("https://apipauuf3m06.vercel.app/MediaRank"))
+                    .uri(new URI(BASE_URL))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(userJson.toString()))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
+            HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             System.out.println("Respuesta: " + response.body());
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error al crear usuario: " + e.getMessage());
         }
     }
 }
